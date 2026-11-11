@@ -10,12 +10,15 @@ import { equationLine, drawEquationRow } from './common.js';
 const G = 9.8;              // m/s², fixed
 const XMAX = 0.1;           // drag limit, m (Δℓ₀ itself reaches 0,196 m)
 
-// Stage geometry (CSS px). Spring hangs from the ceiling at `top`; the strip chart sits to its LEFT, pen at the mass's height.
-export function geom(L) {
+// Stage geometry (CSS px). Spring hangs from the ceiling at `top` (below the title line); the strip chart sits to its LEFT, pen at the
+// mass's height. px/m is fitted so the ceiling, natural-length mark, VTCB and the lowest mass position all stay inside the stage.
+export function geom(L, dl = 0) {
   const s = L.stage, f = L.fontPx, pad = Math.round(f * 0.4);
-  const top = s.y + f * 1.2, hv = L.H - pad - top;
-  const scale = 1.6 * hv, r = Math.min(s.w * 0.06, L.H * 0.06);
-  const cx = s.x + s.w * 0.6, yEq = top + hv * 0.55, xr = XMAX * 1.1;
+  const top = s.y + f * 1.6, hv = L.H - pad - top, r = Math.min(s.w * 0.06, L.H * 0.06);
+  const yEq = top + hv * 0.55;
+  const upRoom = yEq - top - r - hv * 0.05, downRoom = L.H - pad - yEq - r;
+  const scale = Math.min(1.6 * hv, upRoom / Math.max(dl, XMAX * 1.1), downRoom / (XMAX * 1.1));
+  const cx = s.x + s.w * 0.6, xr = XMAX * 1.1;
   const penX = cx - r - f * 2.2, x0 = s.x + f * 0.5;
   const chart = { x: x0, y: yEq - xr * scale, w: penX - x0, h: 2 * xr * scale };
   return { top, scale, r, cx, yEq, xr, chart, eqY: chart.y + chart.h + f * 0.6, axisX: cx - r - f * 0.9 };
@@ -24,20 +27,21 @@ export function geom(L) {
 class SpringVSim extends SpringSim {
   xmax = XMAX;
 
-  normY(xm) { const g = geom(this.L); return (g.yEq + xm * g.scale) / this.L.H; }
-  toMetres(ny) { const g = geom(this.L); return (ny * this.L.H - g.yEq) / g.scale; }
+  geom() { return geom(this.L, staticStretch(this.osc.m, G, this.osc.k)); }
+  normY(xm) { const g = this.geom(); return (g.yEq + xm * g.scale) / this.L.H; }
+  toMetres(ny) { const g = this.geom(); return (ny * this.L.H - g.yEq) / g.scale; }
   along(nx, ny) { return ny; }
-  massPos() { return { x: geom(this.L).cx / this.L.W, y: this.normY(this.osc.x) }; }
+  massPos() { return { x: this.geom().cx / this.L.W, y: this.normY(this.osc.x) }; }
 
   hits(nx, ny) {
     const p = this.massPos();
-    return Math.hypot((nx - p.x) * this.L.W, (ny - p.y) * this.L.H) <= geom(this.L).r * 1.3;
+    return Math.hypot((nx - p.x) * this.L.W, (ny - p.y) * this.L.H) <= this.geom().r * 1.3;
   }
 
   draw(ctx, view) {
     const { layout: L, theme: th, layerCount, reveal } = view;
     this.L = L;
-    const g = geom(L), f = L.fontPx, my = g.yEq + this.osc.x * g.scale;
+    const g = this.geom(), f = L.fontPx, my = g.yEq + this.osc.x * g.scale;
     const yNat = g.yEq - staticStretch(this.osc.m, G, this.osc.k) * g.scale;   // mass centre when the spring has its natural length
 
     // ceiling, natural-length mark, VTCB mark

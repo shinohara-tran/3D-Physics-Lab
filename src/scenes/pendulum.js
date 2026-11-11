@@ -1,4 +1,4 @@
-// Bài 3 — con lắc đơn. Drag the bob to set α (|α| ≤ 10°), release from rest: s = ℓα follows s = A·cos(ωt + φ).
+// Bài 1, 2 — con lắc đơn. Drag the bob to set α (|α| ≤ 10°), release from rest: s = ℓα follows s = A·cos(ωt + φ).
 import { PendulumOscillator } from '../physics/oscillator.js';
 import { omegaPendulum, period, frequency, fromInitial } from '../physics/formulas.js';
 import { num, withUnit, phase } from '../format.js';
@@ -12,15 +12,17 @@ const ALPHA_MAX = 10 * Math.PI / 180;     // drag limit
 const TAPE_S = 4;
 const DEFAULT_LAYOUT = layoutFor(1600, 900, 1);
 
-// Stage geometry (CSS px). Pivot high; ℓ = 2 m reaches the equation row; the tape fills the rest down to the canvas bottom (≥ 0.3·H).
+// Stage geometry (CSS px). Pivot just under the title line; the tape fills the rest down to the canvas bottom (≥ 0,3·H).
+// The string is drawn at 80–100 % of the room above the equation row (ℓ = 0,2 → 2 m), so even the default ℓ swings visibly.
 export function geom(L, l = 1) {
   const s = L.stage, f = L.fontPx, pad = Math.round(f * 0.4), cx = s.x + s.w / 2;
-  const pivotY = s.y + f * 1.2, r = Math.min(s.w * 0.04, L.H * 0.035);
-  const ty = Math.round(L.H * 0.66), eqY = ty - f * 1.4;
-  const scale = (eqY - f * 0.5 - r - pivotY) / 2;                  // px per metre
-  const xr = ALPHA_MAX * 1.1 * l;           // tape half-range (m): 10° swing at this ℓ, with margin
+  const pivotY = s.y + f * 1.45, r = Math.min(s.w * 0.04, L.H * 0.035);
+  const ty = Math.round(L.H * 0.68), eqY = ty - f * 1.2;
+  const room = eqY - f * 0.2 - r - pivotY;
+  const lenPx = (ll) => room * (0.8 + 0.2 * (ll - 0.2) / 1.8);
+  const xr = ALPHA_MAX * 1.1 * l;                                   // tape half-range (m): 10° swing at this ℓ, with margin
   const tw = Math.min(s.w * 0.7, L.H * 0.5);
-  return { cx, pivotY, scale, r, eqY, xr, tape: { x: cx - tw / 2, y: ty, w: tw, h: L.H - pad - ty } };
+  return { cx, pivotY, d: lenPx(l), lenPx, r, eqY, xr, tape: { x: cx - tw / 2, y: ty, w: tw, h: L.H - pad - ty } };
 }
 
 class PendulumSim {
@@ -45,7 +47,7 @@ class PendulumSim {
 
   /** Normalized stage position of the bob at angle alpha. */
   normAt(alpha) {
-    const g = geom(this.L, this.osc.l), d = this.osc.l * g.scale;
+    const g = geom(this.L, this.osc.l), d = g.d;
     return { x: (g.cx + d * Math.sin(alpha)) / this.L.W, y: (g.pivotY + d * Math.cos(alpha)) / this.L.H };
   }
   massPos() { return this.normAt(this.osc.alpha); }
@@ -87,7 +89,7 @@ class PendulumSim {
   draw(ctx, view) {
     const { layout: L, theme: th, layerCount, reveal } = view;
     this.L = L;
-    const { l, alpha } = this.osc, g = geom(L, l), f = L.fontPx, d = l * g.scale;
+    const { l, alpha } = this.osc, g = geom(L, l), f = L.fontPx, d = g.d;
     const bx = g.cx + d * Math.sin(alpha), by = g.pivotY + d * Math.cos(alpha);
 
     // ceiling and the vertical through the pivot (VTCB)
@@ -108,7 +110,7 @@ class PendulumSim {
 export default {
   id: 'pendulum',
   title: 'Con lắc đơn',
-  lesson: 'Bài 3',
+  lesson: 'Bài 1, 2',
   params: [
     { key: 'l', label: 'ℓ', unit: 'm', min: 0.2, max: 2, step: 0.05, value: 1 },
     { key: 'g', label: 'g', unit: 'm/s²', min: G, max: G, step: 0.1, value: G },   // fixed: shown, not adjustable

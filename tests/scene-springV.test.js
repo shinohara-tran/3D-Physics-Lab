@@ -69,3 +69,67 @@ test('chips: k, m, g, then results', () => {
   const hits = drawChips(recorder(), layout.chips, params, reveal, results, THEMES.light, layout.fontPx);
   assert.deepEqual(hits.map((h) => h.key), ['k', 'm', 'g', 'omega', 'T', 'f', 'dl0', 'A', 'phi']);
 });
+
+// ---- fix round 1 ----
+const SIZES = [[1366, 768], [1920, 1080], [730, 630]];
+
+/** Same path as app.js: CSS px -> normalized (offset / L.W, L.H) -> sim.grab / drag / release. */
+function mouseDrag(sim, L, from, to) {
+  const n = (p) => ({ x: p.x / L.W, y: p.y / L.H });
+  const a = n(from), b = n(to);
+  assert.equal(sim.hits(a.x, a.y), true);
+  assert.equal(sim.grab(a.x, a.y), true);
+  sim.drag(b.x, b.y);
+  sim.release();
+}
+
+test('mouse path (draw first, then px -> normalized -> grab/drag/release) sets A for the layout in use', () => {
+  for (const [W, H] of SIZES) {
+    const L = layoutFor(W, H, 1), sim = springV.create({ k: 100, m: 1 });
+    sim.draw(recorder(), { layout: L, theme: THEMES.light, layerCount: 0, paused: false, time: 0 });
+    const m = sim.massPos(), g = sim.geom();
+    mouseDrag(sim, L, { x: m.x * L.W, y: m.y * L.H }, { x: m.x * L.W, y: m.y * L.H + 0.05 * g.scale });
+    assert.ok(Math.abs(sim.state().A - 0.05) < 1e-6, `${W}x${H}: A = ${sim.state().A}`);
+    assert.ok(Math.abs(sim.state().phi) < 1e-9);
+  }
+});
+
+test('geometry: title clear; ceiling, natural mark, VTCB and lowest mass stay inside the stage (soft/heavy and stiff/light)', () => {
+  for (const [W, H] of SIZES) {
+    const L = layoutFor(W, H, 1), f = L.fontPx;
+    for (const [k, m] of [[10, 2], [10, 1], [1000, 0.05], [100, 1]]) {
+      const sim = springV.create({ k, m }), dl = m * 9.8 / k;
+      sim.draw(recorder(), { layout: L, theme: THEMES.light, layerCount: 0, paused: false, time: 0 });
+      const g = sim.geom();
+      assert.ok(g.top - 0.4 * f >= L.stage.y + f, 'ceiling bar starts below the title line');
+      const yNat = g.yEq - dl * g.scale, low = g.yEq + 0.1 * g.scale + g.r, high = g.yEq - Math.max(dl, 0.1) * g.scale - g.r;
+      assert.ok(yNat >= g.top && high >= g.top, `${W}x${H} k=${k} m=${m}: marks below the ceiling`);
+      assert.ok(low <= H && g.eqY + 1.2 * f <= H, 'lowest mass and equation inside the canvas');
+    }
+  }
+});
+
+for (const [W, H] of SIZES) {
+  for (const [k, m, x0] of [[100, 1, 0.05], [10, 2, 0.1], [1000, 0.05, -0.1]]) {
+    test(`equation fits the canvas at ${W}x${H} (k=${k}, m=${m})`, () => {
+      const layout = layoutFor(W, H, 1), boxes = [];
+      const ctx = new Proxy({}, {
+        get: (o, key) => (key in o ? o[key]
+          : key === 'measureText' ? (s) => ({ width: s.length * 0.6 * layout.fontPx })
+          : key === 'fillText' ? (s, x, y) => { if (s.startsWith('x = ')) boxes.push({ x, y, w: s.length * 0.6 * layout.fontPx, align: o.textAlign }); }
+          : () => {}),
+        set: (o, key, v) => { o[key] = v; return true; },
+      });
+      const sim = springV.create({ k, m });
+      sim.draw(ctx, { layout, theme: THEMES.light, layerCount: 0, paused: false, time: 0 });
+      const p = sim.massPos(), g = sim.geom();
+      sim.grab(p.x, p.y); sim.drag(p.x, sim.normY(x0)); sim.release(); sim.step(0.01);
+      const reveal = new RevealBoard(['omega', 'T', 'f', 'dl0', 'A', 'phi']); reveal.revealAll();
+      sim.draw(ctx, { layout, theme: THEMES.light, layerCount: 2, paused: false, time: 0, reveal });
+      assert.equal(boxes.length, 1);
+      const b = boxes[0], f = layout.fontPx;
+      assert.ok(b.x >= layout.stage.x && b.x + b.w <= layout.stage.x + layout.stage.w, 'inside the stage');
+      assert.ok(b.y >= g.chart.y + g.chart.h && b.y + f <= H, 'below the chart, inside the canvas');
+    });
+  }
+}
