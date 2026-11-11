@@ -1,4 +1,4 @@
-// Bài 7 — năng lượng: one horizontal spring (drag/release as springH) plus bars Wđ, Wt, W and the parabolas Wđ(x), Wt(x).
+// Bài 5 — năng lượng: one horizontal spring (drag/release as springH) plus bars Wđ, Wt, W and the parabolas Wđ(x), Wt(x).
 import { SpringSim } from './springH.js';
 import { omegaSpring, energy, kinetic, potential } from '../physics/formulas.js';
 import { num, withUnit } from '../format.js';
@@ -6,6 +6,8 @@ import { FONT } from '../draw/theme.js';
 import { drawBars } from '../draw/primitives.js';
 
 const SAMPLES = 40;
+/** Bar colours Wđ, Wt, W: W is the neutral text colour so it differs from both in either theme. */
+export const barColors = (th) => [th.Wd, th.Wt, th.fg];
 // One unit per state: mJ while W < 1 J, else J. Returns [unit, factor from J].
 const unitFor = (W) => (W < 1 ? ['mJ', 1000] : ['J', 1]);
 const fmtEnergy = (J) => { const [u, k] = unitFor(J); return withUnit(J * k, u, 2); };
@@ -34,11 +36,11 @@ class EnergySim extends SpringSim {
     const { g, f } = this.drawRig(ctx, L, th), b = boxes(L, g);
     const { A, W, Wd, Wt, x } = this.energies();
     if (!(A > 0) || layerCount < 1) return;
-    const [unit, k] = unitFor(W);
+    const [unit, k] = unitFor(W), bc = barColors(th);
     ctx.font = `${f}px ${FONT}`; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
     ctx.fillStyle = th.muted;
     ctx.fillText(`W (${unit})${reveal?.isShown('W') ? ` = ${num(W * k, 2)}` : ''}`, b.bars.x, b.headY);
-    drawBars(ctx, b.bars, [{ label: 'Wđ', value: Wd, color: th.Wd }, { label: 'Wt', value: Wt, color: th.Wt }, { label: 'W', value: W, color: th.accent }], W);
+    drawBars(ctx, b.bars, [{ label: 'Wđ', value: Wd, color: bc[0] }, { label: 'Wt', value: Wt, color: bc[1] }, { label: 'W', value: W, color: bc[2] }], W);
     if (layerCount < 2) return;
 
     const p = b.para, yAt = (E) => p.y + p.h * (1 - E / W), xAt = (u) => p.x + p.w * (u + A) / (2 * A);
@@ -65,7 +67,7 @@ class EnergySim extends SpringSim {
 export default {
   id: 'energy',
   title: 'Năng lượng',
-  lesson: 'Bài 7',
+  lesson: 'Bài 5',
   params: [
     { key: 'k', label: 'k', unit: 'N/m', min: 10, max: 1000, step: 10, value: 100 },
     { key: 'm', label: 'm', unit: 'kg', min: 0.05, max: 2, step: 0.05, value: 1 },

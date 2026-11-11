@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recorder } from './helpers.js';
-import damped from '../src/scenes/damped.js';
+import damped, { curveHeight } from '../src/scenes/damped.js';
 import { geom } from '../src/scenes/springH.js';
 import { THEMES } from '../src/draw/theme.js';
 import { layoutFor } from '../src/ui/layout.js';
@@ -81,3 +81,11 @@ for (const [W, H] of [[1366, 768], [1920, 1080], [730, 630]]) {
     }
   });
 }
+
+test('lesson is Bài 6; less damping gives a taller resonance peak (fixed scale, F₀ = 1 N reference)', () => {
+  assert.equal(damped.lesson, 'Bài 6');
+  const w0 = 10, f0 = w0 / (2 * Math.PI);
+  assert.ok(curveHeight(1, w0, 0.1, f0) > curveHeight(1, w0, 1.0, f0));
+  assert.ok(curveHeight(1, w0, 1.0, f0) > curveHeight(1, w0, 2.0, f0));
+  assert.equal(curveHeight(1, w0, 0, f0), 1, 'clipped at the top, finite at b = 0');
+});

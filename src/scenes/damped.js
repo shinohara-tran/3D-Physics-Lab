@@ -1,4 +1,4 @@
-// Bài 9 — tắt dần, dao động cưỡng bức, cộng hưởng: one horizontal spring with damping b and a driving force F₀·cos(2πft).
+// Bài 6 — tắt dần, dao động cưỡng bức, cộng hưởng: one horizontal spring with damping b and a driving force F₀·cos(2πft).
 import { SpringSim } from './springH.js';
 import { omegaSpring, period, frequency, steadyAmplitude } from '../physics/formulas.js';
 import { withUnit } from '../format.js';
@@ -7,7 +7,15 @@ import { drawArrow } from '../draw/primitives.js';
 import { drawTape } from './common.js';
 
 const B_MIN = 0.02;         // kg/s: keeps A(f) finite at resonance
+const B_REF = 0.1;         // kg/s: a curve with this damping just reaches the top of the plot; lighter damping is clipped
 const SAMPLES = 60;
+
+/** Curve height as a fraction of the plot (0..1) at frequency fr, for the F₀ = 1 N reference force.
+ *  The vertical scale is fixed (independent of b), so less damping gives a taller, sharper peak. */
+export function curveHeight(m, w0, b, fr) {
+  const A = (bb, w) => steadyAmplitude(1, m, w0, Math.max(bb, B_MIN), 2 * Math.PI * w);
+  return Math.min(1, A(b, fr) / A(B_REF, w0 / (2 * Math.PI)));
+}
 const FORCE_FULL = 1;       // N: pusher arrow length scale
 
 const driving = (p) => ({ k: p.k, m: p.m, b: p.b, F0: p.F0, f: p.f });
@@ -46,12 +54,8 @@ class DampedSim extends SpringSim {
 
   drawCurve(ctx, L, th) {
     const b = curveBox(L), f = L.fontPx, w0 = this.osc.omega0(), f0 = w0 / (2 * Math.PI), fmax = 2 * f0;
-    const { b: damp, m, f: fd } = this.osc, bb = Math.max(damp, B_MIN);
-    const A = (fr) => steadyAmplitude(1, m, w0, bb, 2 * Math.PI * fr);            // shape only (F₀ scales it): normalised to its peak
-    let peak = 0;
-    for (let i = 0; i <= SAMPLES; i++) peak = Math.max(peak, A(fmax * i / SAMPLES));
-    peak = Math.max(peak, A(f0));
-    const xAt = (fr) => b.x + b.w * Math.min(1, Math.max(0, fr / fmax)), yAt = (fr) => b.y + b.h * (1 - A(fr) / peak);
+    const { b: damp, m, f: fd } = this.osc;
+    const xAt = (fr) => b.x + b.w * Math.min(1, Math.max(0, fr / fmax)), yAt = (fr) => b.y + b.h * (1 - curveHeight(m, w0, damp, fr));
     ctx.strokeStyle = th.grid; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x, b.y + b.h); ctx.lineTo(b.x + b.w, b.y + b.h); ctx.stroke();
     ctx.setLineDash([8, 8]); ctx.beginPath(); ctx.moveTo(xAt(f0), b.y); ctx.lineTo(xAt(f0), b.y + b.h); ctx.stroke(); ctx.setLineDash([]);
@@ -80,7 +84,7 @@ class DampedSim extends SpringSim {
 export default {
   id: 'damped',
   title: 'Tắt dần, cưỡng bức, cộng hưởng',
-  lesson: 'Bài 9',
+  lesson: 'Bài 6',
   params: [
     { key: 'k', label: 'k', unit: 'N/m', min: 10, max: 1000, step: 10, value: 100 },
     { key: 'm', label: 'm', unit: 'kg', min: 0.05, max: 2, step: 0.05, value: 1 },

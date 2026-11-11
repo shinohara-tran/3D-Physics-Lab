@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recorder } from './helpers.js';
-import energy from '../src/scenes/energy.js';
+import energy, { barColors } from '../src/scenes/energy.js';
 import { geom } from '../src/scenes/springH.js';
 import { THEMES } from '../src/draw/theme.js';
 import { layoutFor } from '../src/ui/layout.js';
@@ -72,3 +72,8 @@ for (const [W, H] of [[1366, 768], [1920, 1080], [730, 630]]) {
     }
   });
 }
+
+test('lesson is Bài 5; Wđ, Wt, W bar colours are all different in both themes', () => {
+  assert.equal(energy.lesson, 'Bài 5');
+  for (const th of Object.values(THEMES)) assert.equal(new Set(barColors(th)).size, 3);
+});
