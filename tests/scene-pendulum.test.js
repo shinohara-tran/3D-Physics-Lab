@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { recorder } from './helpers.js';
 import assert from 'node:assert/strict';
 import pendulum, { geom } from '../src/scenes/pendulum.js';
 import { THEMES } from '../src/draw/theme.js';
@@ -9,10 +10,6 @@ import { RevealBoard } from '../src/ui/reveal.js';
 
 const byKey = (rs) => Object.fromEntries(rs.map((r) => [r.key, r]));
 const D = Math.PI / 180;
-const recorder = (texts = []) => new Proxy({}, {
-  get: (o, k) => (k in o ? o[k] : k === 'fillText' ? (s) => texts.push(s) : k === 'measureText' ? (s) => ({ width: String(s).length * 10 }) : () => {}),
-  set: (o, k, v) => { o[k] = v; return true; },
-});
 const dragTo = (sim, deg) => {
   const m = sim.massPos();
   assert.equal(sim.grab(m.x, m.y), true);
@@ -70,9 +67,9 @@ test('draw: s equation in cm, "?" until revealed; tape ≥ 0,3·H inside the can
     const view = { layout, theme: THEMES.dark, layerCount: 2, paused: false, time: 0, reveal };
     sim.draw(recorder(), view);
     dragTo(sim, 10); sim.step(0.01);
-    sim.draw(recorder(texts), view);
+    sim.draw(recorder(20, texts), view);
     assert.ok(texts.includes('s = ?·cos(?t + ?) (cm)'), texts.join('|'));
-    reveal.revealAll(); texts.length = 0; sim.draw(recorder(texts), view);
+    reveal.revealAll(); texts.length = 0; sim.draw(recorder(20, texts), view);
     assert.ok(texts.includes('s = 17,5·cos(3,13t) (cm)'), texts.join('|'));
   }
 });

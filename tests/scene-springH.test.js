@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { recorder } from './helpers.js';
 import assert from 'node:assert/strict';
 import springH, { geom, tapeTransform } from '../src/scenes/springH.js';
 import { SCENES } from '../src/scenes/index.js';
@@ -61,7 +62,7 @@ const fakeCtx = () => new Proxy({}, {
 });
 
 test('draw and chips run against a canvas stub', () => {
-  assert.deepEqual(SCENES.map((s) => s.id), ['springH', 'springV', 'pendulum', 'phase2', 'velAcc']);
+  assert.deepEqual(SCENES.map((s) => s.id), ['springH', 'springV', 'pendulum', 'phase2', 'velAcc', 'energy', 'damped']);
   const layout = layoutFor(1366, 768, 1);
   const params = new ParamSet(springH.params);
   const sim = springH.create(params.values());
@@ -95,11 +96,7 @@ test('tape transform: newest samples for +A, 0, −A land on the pen row inside 
 });
 
 test('canvas text: equation in cm with "?" until revealed, no combining characters', () => {
-  const texts = [];
-  const ctx = new Proxy({}, {
-    get: (o, k) => (k in o ? o[k] : k === 'fillText' ? (s) => texts.push(s) : k === 'measureText' ? (s) => ({ width: s.length * 10 }) : () => {}),
-    set: (o, k, v) => { o[k] = v; return true; },
-  });
+  const texts = [], ctx = recorder(20, texts);
   const layout = layoutFor(1366, 768, 1), p = { k: 100, m: 1 };
   const sim = springH.create(p);
   const { x, y } = sim.massPos();

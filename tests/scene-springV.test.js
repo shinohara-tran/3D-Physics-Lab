@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { recorder } from './helpers.js';
 import assert from 'node:assert/strict';
 import springV, { geom } from '../src/scenes/springV.js';
 import { THEMES } from '../src/draw/theme.js';
@@ -8,10 +9,6 @@ import { ParamSet } from '../src/ui/params.js';
 import { RevealBoard } from '../src/ui/reveal.js';
 
 const byKey = (rs) => Object.fromEntries(rs.map((r) => [r.key, r]));
-const recorder = (texts = []) => new Proxy({}, {
-  get: (o, k) => (k in o ? o[k] : k === 'fillText' ? (s) => texts.push(s) : k === 'measureText' ? (s) => ({ width: String(s).length * 10 }) : () => {}),
-  set: (o, k, v) => { o[k] = v; return true; },
-});
 
 test('results k=100, m=0,1: Δℓ₀ = 0,0098 m shown in cm', () => {
   const r = byKey(springV.results({ k: 100, m: 0.1 }));
@@ -54,10 +51,10 @@ test('draw: marks labelled, equation in cm with "?" until revealed, chart left o
     sim.draw(recorder(), view);
     const p = sim.massPos();
     sim.grab(p.x, p.y); sim.drag(p.x, sim.normY(0.05)); sim.release(); sim.step(0.01);
-    sim.draw(recorder(texts), view);
+    sim.draw(recorder(20, texts), view);
     assert.ok(texts.includes('chiều dài tự nhiên') && texts.includes('VTCB'));
     assert.ok(texts.includes('x = ?·cos(?t + ?) (cm)'), texts.join('|'));
-    reveal.revealAll(); texts.length = 0; sim.draw(recorder(texts), view);
+    reveal.revealAll(); texts.length = 0; sim.draw(recorder(20, texts), view);
     assert.ok(texts.includes('x = 5·cos(10t) (cm)'), texts.join('|'));
   }
 });

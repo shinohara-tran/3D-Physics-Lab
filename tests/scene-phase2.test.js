@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { recorder } from './helpers.js';
 import assert from 'node:assert/strict';
 import phase2, { geom } from '../src/scenes/phase2.js';
 import { THEMES } from '../src/draw/theme.js';
@@ -11,26 +12,6 @@ const byKey = (rs) => Object.fromEntries(rs.map((r) => [r.key, r]));
 const P = Math.PI;
 const rel = (phi1, phi2) => byKey(phase2.results({ k: 100, m: 1, phi1, phi2 }));
 
-// Records every drawn point/box (text width = 0.6·font per char) and text, so layout can be checked against the canvas.
-function recorder(fontPx) {
-  const pts = [], texts = [], o = {};
-  const add = (x, y) => pts.push([x, y]);
-  const box = (x, y, w, h) => { add(x, y); add(x + w, y + h); };
-  const fns = {
-    moveTo: add, lineTo: add, strokeRect: box, fillRect: box, rect: box,
-    arc: (x, y, r) => { add(x - r, y - r); add(x + r, y + r); },
-    measureText: (s) => ({ width: s.length * 0.6 * fontPx }),
-    fillText: (s, x, y) => {
-      texts.push(s);
-      const w = s.length * 0.6 * fontPx, left = o.textAlign === 'center' ? x - w / 2 : o.textAlign === 'right' ? x - w : x;
-      add(left, y - fontPx); add(left + w, y + fontPx);
-    },
-  };
-  return Object.assign(new Proxy(o, {
-    get: (t, k) => (k in t ? t[k] : fns[k] ?? (() => {})),
-    set: (t, k, v) => { t[k] = v; return true; },
-  }), { pts, texts });
-}
 
 test('relation and Δφ', () => {
   assert.equal(rel(0, 0).relation.text, 'cùng pha');
