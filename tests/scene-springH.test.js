@@ -61,7 +61,7 @@ const fakeCtx = () => new Proxy({}, {
 });
 
 test('draw and chips run against a canvas stub', () => {
-  assert.deepEqual(SCENES.map((s) => s.id), ['springH', 'springV', 'pendulum']);
+  assert.deepEqual(SCENES.map((s) => s.id), ['springH', 'springV', 'pendulum', 'phase2', 'velAcc']);
   const layout = layoutFor(1366, 768, 1);
   const params = new ParamSet(springH.params);
   const sim = springH.create(params.values());

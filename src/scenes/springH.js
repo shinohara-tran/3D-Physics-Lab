@@ -83,11 +83,11 @@ export class SpringSim {
     this.chart.push(this.time, this.osc.x);
   }
 
-  draw(ctx, view) {
-    const { layout: L, theme: th, layerCount, reveal } = view;
+  /** Floor, wall, O mark, spring and mass. Returns the geometry and the mass's x in px. */
+  drawRig(ctx, L, th) {
     this.L = L;
-    const g = geom(L), f = L.fontPx, x = this.osc.x, w = this.osc.omega0();
-    const mx = g.cx + x * g.scale, floorY = g.cy + g.r;
+    const g = geom(L), f = L.fontPx;
+    const mx = g.cx + this.osc.x * g.scale, floorY = g.cy + g.r;
 
     // floor, wall, equilibrium mark
     ctx.strokeStyle = th.muted; ctx.lineWidth = 3;
@@ -101,6 +101,12 @@ export class SpringSim {
     drawSpring(ctx, g.wallX, g.cy, mx - g.r, g.cy, 12, g.r * 0.9, th.spring);
     drawMass(ctx, mx, g.cy, g.r, th.mass);
     ctx.fillStyle = th.bg; ctx.textBaseline = 'middle'; ctx.fillText('m', mx, g.cy);
+    return { g, f, mx };
+  }
+
+  draw(ctx, view) {
+    const { layout: L, theme: th, layerCount, reveal } = view;
+    const { g, f, mx } = this.drawRig(ctx, L, th), w = this.osc.omega0();
 
     // v and a arrows, scaled so their maxima equal the amplitude on screen
     if (w > 0) {

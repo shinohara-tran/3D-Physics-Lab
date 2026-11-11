@@ -88,7 +88,7 @@ export function drawChips(ctx, box, params, reveal, results, theme, fontPx) {
   for (const s of params.specs.values()) {
     const v = params.get(s.key);
     items.push({ key: s.key, kind: 'param', on: params.selected === s.key,
-      text: `${s.label} = ${withUnit(s.toDisplay ? s.toDisplay(v) : v, s.unit)}` });
+      text: `${s.label} = ${s.format ? s.format(v) : withUnit(s.toDisplay ? s.toDisplay(v) : v, s.unit)}` });
   }
   for (const r of results) {
     const shown = reveal.isShown(r.key);

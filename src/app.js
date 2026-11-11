@@ -41,7 +41,7 @@ function main() {
   const results = () => scene.results({ ...params.values(), ...sim.state() });
   function load(i) {
     sceneIdx = (i + SCENES.length) % SCENES.length; scene = SCENES[sceneIdx];
-    params = new ParamSet(scene.params); sim = scene.create(params.values());
+    params = new ParamSet(scene.params); sim = scene.create(params.values()); sim.L = L;   // right geometry for a grab before the first draw
     reveal = new RevealBoard(results().map((r) => r.key));
     st.layers = 0; grabbed = false; adj = mouseAdj = null;
   }
@@ -111,7 +111,7 @@ function main() {
     if (!key) return;
     e.preventDefault();
     params.select(key);
-    setParam(key, params.get(key) - Math.sign(e.deltaY) * params.specs.get(key).step);
+    params.stepBy(key, -e.deltaY); sim.setParams(params.values());
   }, { passive: false });
 
   function resize() {
