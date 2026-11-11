@@ -21,9 +21,9 @@ export class GestureInterpreter {
 
     if (!lm) {
       this.lostSince ??= t;
-      if (this.mode && t - this.lostSince > LOST_S) {
+      if (t - this.lostSince > LOST_S) {
         if (this.mode === 'drag') out.push({ type: 'release', ...this.cursor });
-        this.mode = null; this.selected = null;
+        this.mode = null; this.selected = null; this.hoverKey = null; this.openSince = null; this.openFired = false;
       }
       return out;                                  // cursor stays at last position for the release above
     }
@@ -53,6 +53,7 @@ export class GestureInterpreter {
     }
 
     // ☝ hovering a chip ≥ 0.3 s selects it, so a later pinch anywhere adjusts it
+    if (!p && this.selected && hit.paramAt?.(x, y) !== this.selected) this.selected = null;  // finger left the chip
     const hover = !p && stable === POINT ? hit.paramAt?.(x, y) ?? null : null;
     if (hover !== this.hoverKey) { this.hoverKey = hover; this.hoverT = t; }
     else if (hover && t - this.hoverT >= HOVER_S && this.selected !== hover) {

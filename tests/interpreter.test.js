@@ -65,3 +65,16 @@ test('null frames alone → no actions', () => {
   const it = new GestureInterpreter();
   assert.deepEqual(run(it, rep(null, 30), mass), []);
 });
+
+test('selected chip does not linger: hand lost, or finger leaves chip → pinch on empty space does nothing', () => {
+  const onChip = { massAt: () => false, paramAt: (x) => (x > 0.7 ? 'k' : null) };
+  const chip = { x: 0.8, y: 0.8 }, empty = { x: 0.2, y: 0.3 };
+  const lost = new GestureInterpreter();
+  const a1 = run(lost, [...rep(hand('point', chip), 20), ...rep(null, 15), ...rep(hand('pinch', empty), 6)], onChip);
+  assert.ok(types(a1).includes('selectParam'));
+  assert.ok(!types(a1).includes('adjust'));
+  const moved = new GestureInterpreter();
+  const a2 = run(moved, [...rep(hand('point', chip), 20), ...rep(hand('point', empty), 3), ...rep(hand('pinch', empty), 6)], onChip);
+  assert.ok(types(a2).includes('selectParam'));
+  assert.ok(!types(a2).includes('adjust'));
+});
