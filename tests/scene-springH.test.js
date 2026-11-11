@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import springH from '../src/scenes/springH.js';
+import springH, { geom, tapeTransform } from '../src/scenes/springH.js';
 import { SCENES } from '../src/scenes/index.js';
 import { THEMES } from '../src/draw/theme.js';
 import { drawChips } from '../src/draw/primitives.js';
@@ -29,6 +29,7 @@ test('drag to x = -0,05 m and release => A = 0,05 m, phi = pi', () => {
   assert.ok(Math.abs(r.A.value - 0.05) < 1e-9);
   assert.ok(Math.abs(r.phi.value - Math.PI) < 1e-9);
   assert.equal(r.phi.text, 'π');
+  assert.equal(r.A.text, '5 cm');
   for (let i = 0; i < 10; i++) sim.step(0.6283185 / 20);   // half a period later the mass is at +A
   assert.ok(Math.abs(sim.osc.x - 0.05) < 1e-4);
 });
@@ -73,4 +74,41 @@ test('draw and chips run against a canvas stub', () => {
   assert.deepEqual(hits.map((h) => h.key), ['k', 'm', 'omega', 'T', 'f', 'A', 'phi']);
   assert.deepEqual([...new Set(hits.map((h) => h.kind))], ['param', 'result']);
   for (const h of hits) assert.ok(h.rect.x + h.rect.w <= layout.chips.x + layout.chips.w + 1e-9);
+});
+
+test('tape transform: newest samples for +A, 0, −A land on the pen row inside the tape, +x right of O', () => {
+  const g = geom(layoutFor(1366, 768, 1)), t = g.tape;
+  const [a, b, c, d, e, f] = tapeTransform(t);
+  // StripChart.draw local coords for box {0,0,w:t.h,h:t.w}, range [−xr, xr]
+  const local = (age, v) => [t.h * (1 - age / 4), t.w * (g.xr - v) / (2 * g.xr)];
+  const screen = ([u, v]) => [a * u + c * v + e, b * u + d * v + f];
+  const A = 0.15;
+  const [pA, p0, pm] = [A, 0, -A].map((v) => screen(local(0, v)));
+  for (const [x, y] of [pA, p0, pm]) {
+    assert.ok(x >= t.x - 1e-9 && x <= t.x + t.w + 1e-9 && y >= t.y - 1e-9 && y <= t.y + t.h + 1e-9);
+  }
+  assert.ok(pA[0] > p0[0] && p0[0] > pm[0], '+A right of 0, 0 right of −A');
+  assert.ok(Math.abs(p0[0] - g.cx) < 1e-9 && Math.abs(pA[0] - (g.cx + A * g.scale)) < 1e-9, 'pen exactly under the mass');
+  assert.ok(Math.abs(pA[1] - t.y) < 1e-9, 'newest sample on the top edge');
+  const old = screen(local(4, 0));
+  assert.ok(Math.abs(old[1] - (t.y + t.h)) < 1e-9, 'oldest sample at the bottom edge');
+});
+
+test('canvas text: equation in cm with "?" until revealed, no combining characters', () => {
+  const texts = [];
+  const ctx = new Proxy({}, {
+    get: (o, k) => (k in o ? o[k] : k === 'fillText' ? (s) => texts.push(s) : k === 'measureText' ? (s) => ({ width: s.length * 10 }) : () => {}),
+    set: (o, k, v) => { o[k] = v; return true; },
+  });
+  const layout = layoutFor(1366, 768, 1), p = { k: 100, m: 1 };
+  const sim = springH.create(p);
+  const { x, y } = sim.massPos();
+  sim.grab(x, y); sim.drag(sim.normX(-0.05), y); sim.release(); sim.step(0.05);
+  const reveal = new RevealBoard(['omega', 'T', 'f', 'A', 'phi']);
+  const view = { layout, theme: THEMES.light, layerCount: 2, paused: false, time: 0, reveal };
+  sim.draw(ctx, view);
+  assert.ok(texts.includes('x = ?cos(?t + ?) (cm)'), texts.join(' | '));
+  reveal.revealAll(); texts.length = 0; sim.draw(ctx, view);
+  assert.ok(texts.includes('x = 5cos(10t + π) (cm)'), texts.join(' | '));
+  assert.ok(texts.every((s) => !/[\u0300-\u036f\u20d0-\u20ff]/.test(s)));
 });

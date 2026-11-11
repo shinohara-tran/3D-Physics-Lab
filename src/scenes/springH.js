@@ -11,13 +11,20 @@ const TAPE_S = 4;           // seconds of paper tape kept
 const DEFAULT_LAYOUT = layoutFor(1600, 900, 1);   // until the first draw tells us the real screen
 
 // Stage geometry (CSS px): equilibrium point (cx, cy), metres -> px scale, mass radius, paper tape box.
-function geom(L) {
-  const s = L.stage, cx = s.x + s.w / 2, cy = s.y + s.h * 0.62;
-  const scale = s.w * 0.3 / XMAX, r = Math.min(s.h * 0.18, s.w * 0.06);
-  const xr = XMAX * 1.1;
-  const tape = { x: cx - xr * scale, y: L.bottom.y, w: 2 * xr * scale, h: L.bottom.h };
+// Mass row sits high (room above for the status line and the v, a arrows); the tape fills the rest down to the canvas bottom.
+export function geom(L) {
+  const s = L.stage, f = L.fontPx, cx = s.x + s.w / 2;
+  const scale = s.w * 0.3 / XMAX, r = Math.min(s.w * 0.06, L.H * 0.07);
+  const cy = s.y + r + f * 4.7;
+  const xr = XMAX * 1.1, pad = Math.round(f * 0.4);
+  const ty = cy + r + f * 1.8;                        // below the floor and the "O" label
+  const tape = { x: cx - xr * scale, y: ty, w: 2 * xr * scale, h: L.H - pad - ty };
   return { cx, cy, scale, r, xr, tape, wallX: s.x + s.w * 0.04 };
 }
+
+/** Maps StripChart-local coords (u = time along w, v = value down h, value hi at v = 0) onto the tape:
+ *  newest sample at the top edge (pen), tape runs downward, +x on the right like the mass. A reflection, not a rotation. */
+export const tapeTransform = (t) => [0, -1, -1, 0, t.x + t.w, t.y + t.h];
 
 class SpringSim {
   constructor(p) { this.L = DEFAULT_LAYOUT; this.reset(p); }
@@ -97,8 +104,9 @@ class SpringSim {
     if (w > 0) {
       ctx.font = `${f}px ${FONT}`;
       const vy = g.cy - g.r - f * 0.6, ay = vy - f * 1.6;
-      drawArrow(ctx, mx, vy, mx + this.osc.v / w * g.scale, vy, th.v, 'v⃗');
-      drawArrow(ctx, mx, ay, mx + this.osc.accel() / (w * w) * g.scale, ay, th.a, 'a⃗');
+      // plain letters: combining arrow U+20D7 is missing from common fonts
+      drawArrow(ctx, mx, vy, mx + this.osc.v / w * g.scale, vy, th.v, 'v');
+      drawArrow(ctx, mx, ay, mx + this.osc.accel() / (w * w) * g.scale, ay, th.a, 'a');
     }
 
     if (layerCount >= 1) this.drawTape(ctx, th, g, f);
@@ -112,8 +120,7 @@ class SpringSim {
     ctx.beginPath(); ctx.moveTo(g.cx, t.y); ctx.lineTo(g.cx, t.y + t.h); ctx.stroke();
     ctx.save();
     ctx.beginPath(); ctx.rect(t.x, t.y, t.w, t.h); ctx.clip();
-    // chart time axis -> screen up (newest at the top edge), chart value axis -> screen x
-    ctx.translate(t.x + t.w, t.y + t.h); ctx.rotate(-Math.PI / 2);
+    ctx.transform(...tapeTransform(t));
     this.chart.draw(ctx, { x: 0, y: 0, w: t.h, h: t.w }, th.accent, [-g.xr, g.xr]);
     ctx.restore();
     drawMass(ctx, g.cx + this.osc.x * g.scale, t.y, f * 0.25, th.accent);
@@ -126,7 +133,7 @@ class SpringSim {
     const w = this.osc.omega0();
     ctx.font = `${f}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = th.fg;
     ctx.fillText('x = A·cos(ωt + φ)', s.x, s.y + f * 1.5, s.w);
-    const line = `x = ${show('A', num(this.A, 3))}·cos(${show('omega', num(w))}t + ${show('phi', phase(this.phi))}) (m)`;
+    const line = `x = ${show('A', num(this.A * 100, 1))}cos(${show('omega', num(w))}t + ${show('phi', phase(this.phi))}) (cm)`;
     ctx.fillStyle = th.accent; ctx.fillText(line, s.x, s.y + f * 3, s.w);
   }
 }
@@ -146,7 +153,7 @@ export default {
       { key: 'omega', label: 'ω', formula: 'ω = √(k/m)', value: w, unit: 'rad/s' },
       { key: 'T', label: 'T', formula: 'T = 2π√(m/k)', value: period(w), unit: 's' },
       { key: 'f', label: 'f', formula: 'f = 1/T', value: frequency(w), unit: 'Hz' },
-      { key: 'A', label: 'A', formula: 'A = √(x₀² + (v₀/ω)²)', value: A, unit: 'm', text: withUnit(A, 'm', 3) },
+      { key: 'A', label: 'A', formula: 'A = √(x₀² + (v₀/ω)²)', value: A, unit: 'm', text: withUnit(A * 100, 'cm', 1) },
       { key: 'phi', label: 'φ', formula: 'cos φ = x₀/A', value: phi, unit: 'rad', text: phase(phi) },
     ];
   },
