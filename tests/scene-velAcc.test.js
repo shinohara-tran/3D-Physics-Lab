@@ -37,7 +37,7 @@ test('results k=100, m=1, A=0,05: vmax 0,5 m/s (50 cm/s), amax 5 m/s²', () => {
   assert.equal(r.amax.text, '5 m/s²');
   assert.equal(r.A.text, '5 cm');
   assert.equal(r.vmax.formula, 'vmax = ωA');
-  assert.deepEqual(velAcc.layers, ['Mũi tên v⃗, a⃗', 'Đồ thị x(t)', 'Đồ thị v(t)', 'Đồ thị a(t)']);
+  assert.deepEqual(velAcc.layers, ['Mũi tên v, a', 'Đồ thị x(t)', 'Đồ thị v(t)', 'Đồ thị a(t)']);
 });
 
 test('strips only appear with their layer; at the extreme the v arrow vanishes and the a arrow stays', () => {
@@ -80,3 +80,8 @@ for (const [W, H] of [[1366, 768], [1920, 1080], [730, 630]]) {
     }
   });
 }
+
+test('no scene title, lesson or layer contains combining characters', async () => {
+  const { SCENES } = await import('../src/scenes/index.js');
+  for (const s of SCENES) for (const t of [s.title, s.lesson, ...s.layers]) assert.ok(!/[\u0300-\u036f\u20d0-\u20ff]/.test(t), `${s.id}: ${t}`);
+});

@@ -100,3 +100,5 @@ for (const [W, H] of [[1366, 768], [1920, 1080], [730, 630]]) {
     }
   });
 }
+
+test('phase2 lesson is Bài 2', () => assert.equal(phase2.lesson, 'Bài 2'));

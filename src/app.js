@@ -11,6 +11,14 @@ import { SCENES } from './scenes/index.js';
 const NOTICE = 'Không mở được camera — vẫn dùng được bàn phím và chuột.';
 const SLOW = 0.25, LABEL_S = 1;
 
+/** Shows the notice, then hides it after `ms` (or on click) so it never covers the stage. `later` is injectable for tests. */
+export function showNotice(el, text, ms = 6000, later = setTimeout) {
+  el.textContent = text; el.hidden = false;
+  const hide = () => { el.hidden = true; };
+  el.onclick = hide;
+  later(hide, ms);
+}
+
 /** Starts the webcam hand tracker; on any failure shows the Vietnamese notice and returns null. */
 export async function startCamera(video = document.getElementById('cam'), notice = document.getElementById('notice')) {
   const cam = new HandCamera(video);
@@ -20,8 +28,7 @@ export async function startCamera(video = document.getElementById('cam'), notice
   } catch (e) {
     console.warn('Camera unavailable:', e);
     cam.stop();
-    notice.textContent = NOTICE;
-    notice.hidden = false;
+    showNotice(notice, NOTICE);
     return null;
   }
 }

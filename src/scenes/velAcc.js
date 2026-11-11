@@ -78,7 +78,7 @@ export default {
     { key: 'k', label: 'k', unit: 'N/m', min: 10, max: 1000, step: 10, value: 100 },
     { key: 'm', label: 'm', unit: 'kg', min: 0.05, max: 2, step: 0.05, value: 1 },
   ],
-  layers: ['Mũi tên v⃗, a⃗', 'Đồ thị x(t)', 'Đồ thị v(t)', 'Đồ thị a(t)'],
+  layers: ['Mũi tên v, a', 'Đồ thị x(t)', 'Đồ thị v(t)', 'Đồ thị a(t)'],
   results({ k, m, A = 0 }) {
     const w = omegaSpring(k, m), vm = vMax(w, A), am = aMax(w, A);
     return [

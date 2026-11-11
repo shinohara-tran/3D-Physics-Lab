@@ -23,3 +23,15 @@ test('app.js imports without a DOM (main() only runs in the browser)', async () 
   const m = await import('../src/app.js');
   assert.equal(typeof m.startCamera, 'function');
 });
+
+test('notice hides after the delay and on click', async () => {
+  const { showNotice } = await import('../src/app.js');
+  const el = {}, timers = [];
+  showNotice(el, 'x', 6000, (fn, ms) => timers.push([fn, ms]));
+  assert.equal(el.hidden, false); assert.equal(el.textContent, 'x');
+  assert.equal(timers[0][1], 6000);
+  timers[0][0]();
+  assert.equal(el.hidden, true);
+  el.hidden = false; el.onclick();
+  assert.equal(el.hidden, true);
+});

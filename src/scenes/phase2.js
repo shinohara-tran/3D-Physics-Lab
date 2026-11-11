@@ -109,7 +109,7 @@ class Phase2Sim {
 export default {
   id: 'phase2',
   title: 'Hai con lắc — độ lệch pha',
-  lesson: 'Bài 3',
+  lesson: 'Bài 2',
   params: [
     { key: 'k', label: 'k', unit: 'N/m', min: 10, max: 1000, step: 10, value: 100 },
     { key: 'm', label: 'm', unit: 'kg', min: 0.05, max: 2, step: 0.05, value: 1 },
