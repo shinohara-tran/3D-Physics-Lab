@@ -78,3 +78,38 @@ test('selected chip does not linger: hand lost, or finger leaves chip → pinch 
   assert.ok(types(a2).includes('selectParam'));
   assert.ok(!types(a2).includes('adjust'));
 });
+
+test('hand lost → cursor null after 0.35 s (no ghost cursor); a brief dropout keeps it', () => {
+  const it = new GestureInterpreter();
+  run(it, [...rep(hand('point'), 3), ...rep(null, 5)], mass);
+  assert.ok(it.cursor, 'still shown during a short dropout');
+  run(it, rep(null, 10), mass, 8 / 30);
+  assert.equal(it.cursor, null);
+});
+
+test('opening the hand to end a pinch-drag does not pause: ignored for 1 s after the pinch', () => {
+  const frames = [...rep(hand('pinch'), 6), ...rep(hand('open'), 54)];   // last pinched frame at t = 5/30 s
+  const pauseAt = (n) => {
+    const it = new GestureInterpreter();
+    for (let i = 0; i < n; i++) if (it.update(frames[i], i / 30, mass).some((a) => a.type === 'togglePause')) return i / 30;
+    return null;
+  };
+  const pinchEnd = 5 / 30;
+  assert.equal(pauseAt(6 + 24), null, 'open held 0,8 s after the drag → no pause');
+  const t = pauseAt(frames.length);
+  assert.ok(t !== null && t - pinchEnd >= 1.5 - 1e-9 && t - pinchEnd < 1.6, `pause at ${t}`);
+  const it = new GestureInterpreter();
+  assert.deepEqual(types(run(it, frames.slice(0, 7), mass)), ['grab', 'drag', 'drag', 'drag', 'release']);
+});
+
+test('adjust label uses the parameter label, not the raw key', () => {
+  const it = new GestureInterpreter();
+  const hit = { massAt: () => false, paramAt: () => 'phi1', labelOf: (k) => ({ phi1: 'φ₁' })[k] };
+  run(it, rep(hand('pinch', { x: 0.8, y: 0.8 }), 4), hit);
+  assert.equal(it.lastLabel, '🤏 Chỉnh φ₁');
+});
+
+test('snap label avoids the 🫰 glyph (missing on Windows 10)', async () => {
+  const { readFileSync } = await import('node:fs');
+  assert.doesNotMatch(readFileSync('src/input/interpreter.js', 'utf8'), /🫰/);
+});

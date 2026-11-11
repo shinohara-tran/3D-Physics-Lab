@@ -1,6 +1,6 @@
 import { HandCamera } from './input/hands.js';
 import { GestureInterpreter } from './input/interpreter.js';
-import { startInputs } from './input/inputs.js';
+import { startInputs, clickerAction } from './input/inputs.js';
 import { ParamSet } from './ui/params.js';
 import { RevealBoard } from './ui/reveal.js';
 import { layoutFor } from './ui/layout.js';
@@ -42,7 +42,7 @@ function main() {
   const inputs = startInputs({ cameraOk: false });
   const gi = new GestureInterpreter();
   let cam = null, camShown = true;
-  startCamera(video).then((c) => { cam = c; inputs.cameraOk = inputs.gesturesEnabled = !!c; });
+  startCamera(video).then((c) => { cam = c; inputs.cameraReady(!!c); });   // keeps gestures off if 'g' turned them off while loading
 
   const st = { theme: 'light', paused: false, slow: false, layers: 0 };
   let scene, sceneIdx = 0, params, reveal, sim, L, hits = [], grabbed = false, adj = null, mouseAdj = null;
@@ -56,7 +56,7 @@ function main() {
   }
   const paramAt = (px, py) => hits.find((h) => h.kind === 'param' && inside(h.rect, px, py))?.key ?? null;
   const resultAt = (px, py) => hits.find((h) => h.kind === 'result' && inside(h.rect, px, py))?.key ?? null;
-  const hit = { massAt: (x, y) => sim.hits(x, y), paramAt: (x, y) => paramAt(x * L.W, y * L.H) };
+  const hit = { massAt: (x, y) => sim.hits(x, y), paramAt: (x, y) => paramAt(x * L.W, y * L.H), labelOf: (k) => params.specs.get(k)?.label ?? k };
   const setParam = (key, v) => { params.set(key, v); sim.setParams(params.values()); };
 
   function apply(a) {
@@ -65,6 +65,7 @@ function main() {
       case 'slowMo': st.slow = !st.slow; break;
       case 'nextLayer': st.layers = Math.min(scene.layers.length, st.layers + 1); break;
       case 'prevLayer': st.layers = Math.max(0, st.layers - 1); break;
+      case 'nextStep': case 'prevStep': apply(clickerAction(a.type, st.layers, scene.layers.length)); break;
       case 'revealNext': reveal.revealNext(); break;
       case 'revealAll': reveal.revealAll(); break;
       case 'hideAll': reveal.hideAll(); break;
