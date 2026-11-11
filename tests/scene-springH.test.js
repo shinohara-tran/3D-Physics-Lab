@@ -107,8 +107,38 @@ test('canvas text: equation in cm with "?" until revealed, no combining characte
   const reveal = new RevealBoard(['omega', 'T', 'f', 'A', 'phi']);
   const view = { layout, theme: THEMES.light, layerCount: 2, paused: false, time: 0, reveal };
   sim.draw(ctx, view);
-  assert.ok(texts.includes('x = ?cos(?t + ?) (cm)'), texts.join(' | '));
+  assert.ok(texts.includes('x = ?·cos(?t + ?) (cm)'), texts.join(' | '));
   reveal.revealAll(); texts.length = 0; sim.draw(ctx, view);
-  assert.ok(texts.includes('x = 5cos(10t + π) (cm)'), texts.join(' | '));
+  assert.ok(texts.includes('x = 5·cos(10t + π) (cm)'), texts.join(' | '));
   assert.ok(texts.every((s) => !/[\u0300-\u036f\u20d0-\u20ff]/.test(s)));
 });
+
+// Stub whose measureText width = length·0.6·fontPx; records equation fillText boxes.
+for (const [W, H] of [[1366, 768], [1920, 1080], [730, 630]]) {
+  for (const [k, m, x0] of [[100, 1, -0.05], [1000, 0.05, 0.15]]) {
+    test(`equation fits the canvas at ${W}x${H} (k=${k}, m=${m})`, () => {
+      const layout = layoutFor(W, H, 1), boxes = [];
+      const ctx = new Proxy({}, {
+        get: (o, key) => (key in o ? o[key]
+          : key === 'measureText' ? (s) => ({ width: s.length * 0.6 * layout.fontPx })
+          : key === 'fillText' ? (s, x, y) => { if (s.startsWith('x = ')) boxes.push({ s, x, y, align: o.textAlign, w: s.length * 0.6 * layout.fontPx }); }
+          : () => {}),
+        set: (o, key, v) => { o[key] = v; return true; },
+      });
+      const sim = springH.create({ k, m });
+      sim.draw(ctx, { layout, theme: THEMES.light, layerCount: 0, paused: false, time: 0 });   // sim learns the layout
+      const p = sim.massPos();
+      sim.grab(p.x, p.y); sim.drag(sim.normX(x0), p.y); sim.release(); sim.step(0.01);
+      const reveal = new RevealBoard(['omega', 'T', 'f', 'A', 'phi']); reveal.revealAll();
+      sim.draw(ctx, { layout, theme: THEMES.light, layerCount: 2, paused: false, time: 0, reveal });
+      assert.equal(boxes.length, 1);
+      const b = boxes[0], f = layout.fontPx;
+      assert.ok(b.s.includes('·cos('));
+      assert.equal(b.align, 'left');
+      assert.ok(b.x >= 0 && b.x + b.w <= W && b.y >= 0 && b.y + f <= H, JSON.stringify(b));
+      assert.ok(b.x >= layout.stage.x && b.x + b.w <= layout.stage.x + layout.stage.w, 'inside the stage');
+      const g = geom(layout);
+      assert.ok(b.y > g.cy + g.r && b.y + 1.2 * f <= g.tape.y, 'between floor and tape');
+    });
+  }
+}

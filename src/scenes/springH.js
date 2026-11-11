@@ -17,9 +17,10 @@ export function geom(L) {
   const scale = s.w * 0.3 / XMAX, r = Math.min(s.w * 0.06, L.H * 0.07);
   const cy = s.y + r + f * 4.7;
   const xr = XMAX * 1.1, pad = Math.round(f * 0.4);
-  const ty = cy + r + f * 1.8;                        // below the floor and the "O" label
+  const eqY = cy + r + f * 1.6;                       // equation row, below the floor and the "O" label
+  const ty = eqY + f * 1.4;
   const tape = { x: cx - xr * scale, y: ty, w: 2 * xr * scale, h: L.H - pad - ty };
-  return { cx, cy, scale, r, xr, tape, wallX: s.x + s.w * 0.04 };
+  return { cx, cy, scale, r, xr, tape, eqY, wallX: s.x + s.w * 0.04 };
 }
 
 /** Maps StripChart-local coords (u = time along w, v = value down h, value hi at v = 0) onto the tape:
@@ -110,7 +111,7 @@ class SpringSim {
     }
 
     if (layerCount >= 1) this.drawTape(ctx, th, g, f);
-    if (layerCount >= 2) this.drawEquation(ctx, L, th, reveal);
+    if (layerCount >= 2) this.drawEquation(ctx, L, th, g, reveal);
   }
 
   // Paper tape under the mass (Hình 6.1): the pen sits at the mass's x and the tape runs downward.
@@ -128,13 +129,15 @@ class SpringSim {
     ctx.fillText('x(t)', t.x + t.w + f * 0.4, t.y);
   }
 
-  drawEquation(ctx, L, th, reveal) {
-    const s = L.side, f = L.fontPx, show = (k, txt) => (reveal?.isShown(k) ? txt : '?');
-    const w = this.osc.omega0();
-    ctx.font = `${f}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = th.fg;
-    ctx.fillText('x = A·cos(ωt + φ)', s.x, s.y + f * 1.5, s.w);
-    const line = `x = ${show('A', num(this.A * 100, 1))}cos(${show('omega', num(w))}t + ${show('phi', phase(this.phi))}) (cm)`;
-    ctx.fillStyle = th.accent; ctx.fillText(line, s.x, s.y + f * 3, s.w);
+  // One line centred on O (clamped to the stage), so it never runs off the canvas.
+  drawEquation(ctx, L, th, g, reveal) {
+    const f = L.fontPx, show = (k, txt) => (reveal?.isShown(k) ? txt : '?');
+    const ph = this.phi < 0 ? `− ${phase(-this.phi)}` : `+ ${phase(this.phi)}`;
+    const line = `x = ${show('A', num(this.A * 100, 1))}·cos(${show('omega', num(this.osc.omega0()))}t ${reveal?.isShown('phi') ? ph.replace(' rad', '') : '+ ?'}) (cm)`;
+    ctx.font = `${f}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = th.accent;
+    const s = L.stage, w = Math.min(s.w, ctx.measureText(line).width);
+    const x = Math.min(s.x + s.w - w, Math.max(s.x, g.cx - w / 2));
+    ctx.fillText(line, x, g.eqY, s.w);              // maxWidth: last-resort squeeze for extreme values
   }
 }
 
