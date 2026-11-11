@@ -36,6 +36,8 @@ export async function startCamera(video = document.getElementById('cam'), notice
 const inside = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 function main() {
+  const secure = location.protocol === 'https:' || location.hostname === 'localhost';
+  if ('serviceWorker' in navigator && secure) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('sw', e));
   const canvas = document.getElementById('stage'), ctx = canvas.getContext('2d'), video = document.getElementById('cam');
   const inputs = startInputs({ cameraOk: false });
   const gi = new GestureInterpreter();
