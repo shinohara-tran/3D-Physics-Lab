@@ -21,3 +21,14 @@ test('reset with new keys hides everything', () => {
   assert.ok(!b.isShown('x') && !b.isShown('A') && !b.isShown('T'));
   b.revealNext(); assert.ok(b.isShown('x'));
 });
+
+test('last: the most recently revealed key (its formula is shown)', () => {
+  const b = new RevealBoard(['T', 'f', 'v']);
+  assert.equal(b.last, null);
+  b.revealNext(); assert.equal(b.last, 'T');
+  b.toggle('v'); assert.equal(b.last, 'v');
+  b.toggle('v'); assert.equal(b.last, null, 'hiding it clears the formula');
+  b.revealAll(); assert.equal(b.last, 'f', 'first newly revealed');
+  b.hideAll(); assert.equal(b.last, null);
+  b.revealNext(); b.reset(['x']); assert.equal(b.last, null);
+});

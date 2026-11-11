@@ -77,8 +77,8 @@ export default {
     const W = energy(m, omegaSpring(k, m), A), text = fmtEnergy(W);
     return [
       { key: 'W', label: 'W', formula: 'W = ½mω²A²', value: W, unit: 'J', text },
-      { key: 'Wdmax', label: 'Wđmax', formula: 'Wđmax = ½mω²A² = W', value: W, unit: 'J', text },
-      { key: 'Wtmax', label: 'Wtmax', formula: 'Wtmax = ½kA² = W', value: W, unit: 'J', text },
+      { key: 'Wdmax', label: 'Wđmax', formula: 'Wđmax = ½mω²A²', value: W, unit: 'J', text },
+      { key: 'Wtmax', label: 'Wtmax', formula: 'Wtmax = ½kA²', value: W, unit: 'J', text },
     ];
   },
   create: (p) => new EnergySim(p),

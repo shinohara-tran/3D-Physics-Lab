@@ -17,6 +17,8 @@ test('SGK Bài 7 VD2: m=0,2, ω=2π, A=0,1 => W = 0,039478 J, shown in mJ; Wđma
   assert.equal(r.W.text, '39,48 mJ');
   assert.equal(r.Wdmax.value, r.W.value); assert.equal(r.Wtmax.text, r.W.text);
   assert.equal(r.W.formula, 'W = ½mω²A²');
+  assert.equal(r.Wdmax.formula, 'Wđmax = ½mω²A²', 'formula must not give the answer away');
+  assert.equal(r.Wtmax.formula, 'Wtmax = ½kA²');
   assert.equal(byKey(energy.results({ k: 1000, m: 1, A: 0.15 })).W.text, '11,25 J');
   assert.deepEqual(energy.layers, ['Thanh Wđ, Wt, W', 'Parabol Wđ(x), Wt(x)']);
 });

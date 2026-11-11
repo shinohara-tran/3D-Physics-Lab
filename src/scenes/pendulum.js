@@ -115,7 +115,7 @@ export default {
     { key: 'l', label: 'ℓ', unit: 'm', min: 0.2, max: 2, step: 0.05, value: 1 },
     { key: 'g', label: 'g', unit: 'm/s²', min: G, max: G, step: 0.1, value: G },   // fixed: shown, not adjustable
   ],
-  layers: ['Băng x(t)', 'Phương trình'],
+  layers: ['Băng s(t)', 'Phương trình'],
   results({ l, g = G, A = 0, alpha0 = 0, phi = 0 }) {
     const w = omegaPendulum(g, l);
     return [

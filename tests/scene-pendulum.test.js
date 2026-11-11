@@ -106,3 +106,7 @@ test('mouse path (draw first, then px -> normalized -> grab/drag/release) sets �
     assert.ok(Math.abs(sim.state().alpha0 - 6 * D) < 1e-9, `${W}x${H}: ${sim.state().alpha0}`);
   }
 });
+
+test('layer label matches the tape label s(t)', () => {
+  assert.deepEqual(pendulum.layers, ['Băng s(t)', 'Phương trình']);
+});
