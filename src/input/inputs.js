@@ -30,6 +30,11 @@ export const CAMERA_STALL_S = 3;
 /** The camera is gone: poll threw, the video track ended, or no new frame for more than 3 s. */
 export const cameraLost = ({ failed = false, ended = false, sinceFrameS = 0 }) => failed || ended || sinceFrameS > CAMERA_STALL_S;
 
+// The camera loses hands near its edges: the inner box [0.15, 0.85] × [0.1, 0.8] of the camera image covers the whole stage.
+const REACH = { x0: 0.15, y0: 0.1, span: 0.7 };
+/** Landmarks (mirrored camera coords) → stage coords; one uniform gain so the gesture shape ratios are unchanged. */
+export const reach = (lm) => lm.map(([x, y]) => [(x - REACH.x0) / REACH.span, (y - REACH.y0) / REACH.span]);
+
 export const WHEEL_STEP = 100;
 /** Touchpads send many small deltas: accumulate, one notch per WHEEL_STEP units. Returns [notches (+ = wheel down), rest]. */
 export function wheelSteps(acc, deltaY) {

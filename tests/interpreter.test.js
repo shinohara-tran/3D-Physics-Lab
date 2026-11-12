@@ -113,3 +113,10 @@ test('snap label avoids the 🫰 glyph (missing on Windows 10)', async () => {
   const { readFileSync } = await import('node:fs');
   assert.doesNotMatch(readFileSync('src/input/interpreter.js', 'utf8'), /🫰/);
 });
+
+test('cursor is the thumb–index midpoint, so it does not jump when the fingers close', () => {
+  const it = new GestureInterpreter();
+  const open = hand('open');                       // index tip (0.4, 0.4), thumb (0.2, 0.7)
+  it.update(open, 0, mass);
+  assert.ok(Math.abs(it.cursor.x - 0.3) < 1e-9 && Math.abs(it.cursor.y - 0.55) < 1e-9);
+});

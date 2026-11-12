@@ -31,7 +31,8 @@ export class GestureInterpreter {
       return out;
     }
     this.lostSince = null;
-    this.cursor = { x: lm[8][0], y: lm[8][1] };
+    // midpoint of thumb tip and index tip: stays put while the fingers close, so the aim doesn't jump at pinch time
+    this.cursor = { x: (lm[4][0] + lm[8][0]) / 2, y: (lm[4][1] + lm[8][1]) / 2 };
     const { x, y } = this.cursor;
     const p = pinched(lm);
     this.pinchN = p ? this.pinchN + 1 : 0;

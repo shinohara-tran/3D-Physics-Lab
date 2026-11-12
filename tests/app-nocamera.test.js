@@ -70,3 +70,9 @@ test('wheel: touchpad deltas accumulate, one notch per 100 units', () => {
   assert.deepEqual(wheelSteps(0, -100), [-1, 0]);
   assert.deepEqual(wheelSteps(0, 300), [3, 0]);
 });
+
+test('reach: inner camera box maps to the whole stage, same gain on x and y', async () => {
+  const { reach } = await import('../src/input/inputs.js');
+  const [[x0, y0], [x1, y1]] = reach([[0.15, 0.1], [0.85, 0.8]]);
+  assert.ok(Math.abs(x0) < 1e-9 && Math.abs(y0) < 1e-9 && Math.abs(x1 - 1) < 1e-9 && Math.abs(y1 - 1) < 1e-9);
+});

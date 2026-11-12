@@ -1,6 +1,6 @@
 import { HandCamera } from './input/hands.js';
 import { GestureInterpreter } from './input/interpreter.js';
-import { startInputs, clickerAction, cameraLost, wheelSteps } from './input/inputs.js';
+import { startInputs, clickerAction, cameraLost, wheelSteps, reach } from './input/inputs.js';
 import { ParamSet } from './ui/params.js';
 import { RevealBoard } from './ui/reveal.js';
 import { layoutFor } from './ui/layout.js';
@@ -62,7 +62,14 @@ function main() {
   }
   const paramAt = (px, py) => hits.find((h) => h.kind === 'param' && inside(h.rect, px, py))?.key ?? null;
   const resultAt = (px, py) => hits.find((h) => h.kind === 'result' && inside(h.rect, px, py))?.key ?? null;
-  const hit = { massAt: (x, y) => sim.hits(x, y), paramAt: (x, y) => paramAt(x * L.W, y * L.H), labelOf: (k) => params.specs.get(k)?.label ?? k };
+  // A hand is far less precise than a mouse: gestures get a wider catch zone around the mass and the chips.
+  const pad = (r, d) => ({ x: r.x - d, y: r.y - d, w: r.w + 2 * d, h: r.h + 2 * d });
+  const nearMass = (x, y) => { const p = sim.massPos(); return Math.hypot((x - p.x) * L.W, (y - p.y) * L.H) < 0.1 * L.H; };
+  const hit = {
+    massAt: (x, y) => sim.hits(x, y) || (sim.hits(sim.massPos().x, sim.massPos().y) && nearMass(x, y)),
+    paramAt: (x, y) => hits.find((h) => h.kind === 'param' && inside(pad(h.rect, L.fontPx * 0.5), x * L.W, y * L.H))?.key ?? null,
+    labelOf: (k) => params.specs.get(k)?.label ?? k,
+  };
   // only re-derive the sim when the snapped value changed (phase2 setParams restarts the scene)
   const changeParam = (key, fn) => { const old = params.get(key); fn(); if (params.get(key) !== old) sim.setParams(params.values()); };
   const setParam = (key, v) => changeParam(key, () => params.set(key, v));
@@ -194,7 +201,8 @@ function main() {
     let hands, failed = false;
     try { if (inputs.gesturesEnabled) hands = cam.poll(); } catch (e) { console.warn('camera', e); failed = true; }
     if (cameraLost({ failed, ended: cam.ended, sinceFrameS: t - camT })) { loseCamera(); return; }
-    if (hands) gi.update(hands[0], t, hit).forEach(apply);
+    // a gesture grab caught by the wide zone grabs the mass itself (sim.grab needs an exact hit)
+    if (hands) gi.update(hands[0] && reach(hands[0]), t, hit).map((a) => (a.type === 'grab' ? { ...a, ...sim.massPos() } : a)).forEach(apply);
   }
 
   let last = null, logged = false;
