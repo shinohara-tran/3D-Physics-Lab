@@ -1,14 +1,16 @@
 import { HandCamera } from './input/hands.js';
 import { GestureInterpreter } from './input/interpreter.js';
-import { startInputs, clickerAction } from './input/inputs.js';
+import { startInputs, clickerAction, cameraLost, wheelSteps } from './input/inputs.js';
 import { ParamSet } from './ui/params.js';
 import { RevealBoard } from './ui/reveal.js';
 import { layoutFor } from './ui/layout.js';
+import { drawHelp } from './ui/help.js';
 import { THEMES, FONT } from './draw/theme.js';
-import { drawChips } from './draw/primitives.js';
+import { drawChips, chipRows, drawFormula } from './draw/primitives.js';
 import { SCENES } from './scenes/index.js';
 
 const NOTICE = 'Không mở được camera — vẫn dùng được bàn phím và chuột.';
+const LOST = 'Mất camera — vẫn dùng được bàn phím và chuột.';
 const SLOW = 0.25, LABEL_S = 1;
 
 /** Shows the notice, then hides it after `ms` (or on click) so it never covers the stage. `later` is injectable for tests. */
@@ -40,12 +42,16 @@ function main() {
   if ('serviceWorker' in navigator && secure) navigator.serviceWorker.register('sw.js').catch((e) => console.warn('sw', e));
   const canvas = document.getElementById('stage'), ctx = canvas.getContext('2d'), video = document.getElementById('cam');
   const inputs = startInputs({ cameraOk: false });
-  const gi = new GestureInterpreter();
-  let cam = null, camShown = true;
-  startCamera(video).then((c) => { cam = c; inputs.cameraReady(!!c); });   // keeps gestures off if 'g' turned them off while loading
+  let gi = new GestureInterpreter();
+  let cam = null, camShown = true, camT = null, camVT = -1;   // camT: time of the last new camera frame
+  startCamera(video).then((c) => {
+    cam = c; camT = null;
+    c?.stream?.getVideoTracks()[0]?.addEventListener('ended', () => { c.ended = true; });
+    inputs.cameraReady(!!c);   // keeps gestures off if 'g' turned them off while loading
+  });
 
-  const st = { theme: 'light', paused: false, slow: false, layers: 0 };
-  let scene, sceneIdx = 0, params, reveal, sim, L, hits = [], grabbed = false, adj = null, mouseAdj = null;
+  const st = { theme: 'light', paused: false, slow: false, layers: 0, help: false };
+  let scene, sceneIdx = 0, params, reveal, sim, L, rows = 2, hits = [], grabbed = false, adj = null, mouseAdj = null, wheel = { key: null, acc: 0 };
 
   const results = () => scene.results({ ...params.values(), ...sim.state() });
   function load(i) {
@@ -57,7 +63,9 @@ function main() {
   const paramAt = (px, py) => hits.find((h) => h.kind === 'param' && inside(h.rect, px, py))?.key ?? null;
   const resultAt = (px, py) => hits.find((h) => h.kind === 'result' && inside(h.rect, px, py))?.key ?? null;
   const hit = { massAt: (x, y) => sim.hits(x, y), paramAt: (x, y) => paramAt(x * L.W, y * L.H), labelOf: (k) => params.specs.get(k)?.label ?? k };
-  const setParam = (key, v) => { params.set(key, v); sim.setParams(params.values()); };
+  // only re-derive the sim when the snapped value changed (phase2 setParams restarts the scene)
+  const changeParam = (key, fn) => { const old = params.get(key); fn(); if (params.get(key) !== old) sim.setParams(params.values()); };
+  const setParam = (key, v) => changeParam(key, () => params.set(key, v));
 
   function apply(a) {
     switch (a.type) {
@@ -74,6 +82,8 @@ function main() {
       case 'gotoScene': if (a.index < SCENES.length) load(a.index); break;
       case 'toggleTheme': st.theme = st.theme === 'light' ? 'dark' : 'light'; break;
       case 'toggleCamera': camShown = !camShown; break;
+      case 'toggleHelp': st.help = !st.help; break;
+      case 'closeHelp': st.help = false; break;
       case 'grab': grabbed = sim.grab(a.x, a.y); break;
       case 'drag': if (grabbed) sim.drag(a.x, a.y); break;
       case 'release': if (grabbed) sim.release(); grabbed = false; break;
@@ -95,13 +105,14 @@ function main() {
     const a = inputs.dispatchKey(e.key);
     if (!a) return;
     e.preventDefault();
-    if (a.type === 'toggleGestures' && !inputs.gesturesEnabled && grabbed) apply({ type: 'release' });
+    if (a.type === 'toggleGestures') { if (!inputs.gesturesEnabled && grabbed) apply({ type: 'release' }); adj = null; gi = new GestureInterpreter(); }
     apply(a);
   });
 
   // Mouse parity with gestures: drag the mass, drag a param chip vertically, click a result chip, wheel a param chip.
   const norm = (e) => ({ x: e.offsetX / L.W, y: e.offsetY / L.H });
   canvas.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;                          // primary button / touch / pen only
     canvas.setPointerCapture(e.pointerId);
     const n = norm(e), rk = resultAt(e.offsetX, e.offsetY), pk = paramAt(e.offsetX, e.offsetY);
     if (rk) reveal.toggle(rk);
@@ -121,21 +132,28 @@ function main() {
     if (!key) return;
     e.preventDefault();
     params.select(key);
-    params.stepBy(key, -e.deltaY); sim.setParams(params.values());
+    if (wheel.key !== key) wheel = { key, acc: 0 };
+    const [n, acc] = wheelSteps(wheel.acc, e.deltaMode ? e.deltaY * 33 : e.deltaY);   // deltaMode 1: lines (~33 px)
+    wheel.acc = acc;
+    if (n) changeParam(key, () => { for (let i = 0; i < Math.abs(n); i++) params.stepBy(key, -n); });
   }, { passive: false });
 
   function resize() {
-    L = layoutFor(innerWidth, innerHeight, devicePixelRatio || 1);
+    L = layoutFor(innerWidth, innerHeight, devicePixelRatio || 1, rows);
     canvas.width = Math.round(L.W * L.dpr); canvas.height = Math.round(L.H * L.dpr);
   }
   addEventListener('resize', resize);
 
   function draw(t) {
-    const th = THEMES[st.theme], f = L.fontPx, res = results();
+    const res = results(), need = chipRows(ctx, L.chips, params, res, L.fontPx);
+    if (need !== rows) { rows = need; L = layoutFor(L.W, L.H, L.dpr, rows); }   // stage starts below the chips
+    const th = THEMES[st.theme], f = L.fontPx;
     ctx.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
     ctx.fillStyle = th.bg; ctx.fillRect(0, 0, L.W, L.H);
     sim.draw(ctx, { layout: L, theme: th, layerCount: st.layers, paused: st.paused, time: t, reveal, results: res });
     hits = drawChips(ctx, L.chips, params, reveal, res, th, f);
+    const shown = res.find((r) => r.key === reveal.last);
+    if (shown) drawFormula(ctx, L.formula, shown, th, f);
 
     const status = [scene.title, scene.lesson];
     if (st.paused) status.push('⏸ Tạm dừng');
@@ -155,24 +173,42 @@ function main() {
         ctx.font = `${Math.round(f * 1.2)}px ${FONT}`; ctx.fillStyle = th.fg; ctx.textAlign = 'right';
         ctx.fillText(gi.lastLabel, c.x + c.w, c.y + c.h + f * 0.3);
       }
-      if (gi.cursor) {
+      if (gi.cursor && gi.lostSince === null) {              // only while the hand is visible
         ctx.beginPath(); ctx.arc(gi.cursor.x * L.W, gi.cursor.y * L.H, f * 0.35, 0, 2 * Math.PI);
         ctx.fillStyle = th.accent; ctx.globalAlpha = 0.7; ctx.fill(); ctx.globalAlpha = 1;
       }
     }
   }
 
-  let last = null;
+  // Camera gone (poll threw, track ended, no frame for > 3 s): keyboard and mouse carry on.
+  function loseCamera() {
+    cam.stop(); cam = null;
+    inputs.cameraReady(false);
+    if (grabbed) apply({ type: 'release' });
+    adj = null; gi = new GestureInterpreter();
+    showNotice(document.getElementById('notice'), LOST);
+  }
+
+  function pollCamera(t, dt) {
+    if (camT === null || dt > 1 || video.currentTime !== camVT) { camVT = video.currentTime; camT = t; }   // dt > 1: tab was hidden
+    let hands, failed = false;
+    try { if (inputs.gesturesEnabled) hands = cam.poll(); } catch (e) { console.warn('camera', e); failed = true; }
+    if (cameraLost({ failed, ended: cam.ended, sinceFrameS: t - camT })) { loseCamera(); return; }
+    if (hands) gi.update(hands[0], t, hit).forEach(apply);
+  }
+
+  let last = null, logged = false;
+  const logOnce = (e) => { if (!logged) { logged = true; console.error(e); } };
   function frame(ts) {
+    requestAnimationFrame(frame);                    // first: an exception below must never stop the loop
     const t = ts / 1000, dt = last === null ? 0 : t - last;
     last = t;
-    if (cam && inputs.gesturesEnabled) {
-      const hands = cam.poll();
-      if (hands) gi.update(hands[0], t, hit).forEach(apply);
-    }
-    sim.step(st.paused ? 0 : dt * (st.slow ? SLOW : 1));
-    draw(t);
-    requestAnimationFrame(frame);
+    try { if (cam) pollCamera(t, dt); } catch (e) { logOnce(e); }
+    try {
+      sim.step(st.paused ? 0 : dt * (st.slow ? SLOW : 1));
+      draw(t);
+      if (st.help) drawHelp(ctx, L, THEMES[st.theme]);
+    } catch (e) { logOnce(e); }
   }
 
   resize(); load(0);

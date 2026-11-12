@@ -25,6 +25,7 @@ const PRECACHE = [
   'src/scenes/springH.js',
   'src/scenes/springV.js',
   'src/scenes/velAcc.js',
+  'src/ui/help.js',
   'src/ui/layout.js',
   'src/ui/params.js',
   'src/ui/reveal.js',

@@ -39,3 +39,15 @@ test('every scene formula fits the formula box at 730x630', () => {
     }
   }
 });
+
+import { drawHelp, HELP } from '../src/ui/help.js';
+for (const [W, H] of [[1366, 768], [730, 630]]) {
+  test(`help overlay (${W}x${H}): Vietnamese rows inside the canvas at ≥ fontPx, no combining characters`, () => {
+    const L = layoutFor(W, H, 1), rc = recorder(L.fontPx);
+    drawHelp(rc, L, THEMES.dark);
+    assert.ok(rc.texts.includes('Phím và cử chỉ') && rc.texts.includes('Dừng / Chạy'));
+    assert.ok(parseInt(rc.font, 10) >= L.fontPx);
+    for (const [x, y] of rc.pts) assert.ok(x >= 0 && y >= 0 && y <= H, `${x},${y}`);
+    for (const row of HELP) for (const s of row) assert.doesNotMatch(s, /[\u0300-\u036f\u20d0-\u20ff]/);
+  });
+}
