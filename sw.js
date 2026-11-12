@@ -1,5 +1,6 @@
-// Offline cache. Network-first for app code (updates arrive when online), cache-first for big immutable files.
-const CACHE = 'dao-dong-v1';
+// Offline cache. Stale-while-revalidate for app code (cache answers at once, a background fetch refreshes it, so an
+// update shows on the next load), cache-first for the big immutable models/ and vendor/ files.
+const CACHE = 'dao-dong-v2';
 const PRECACHE = [
   './',
   'index.html',
@@ -48,20 +49,23 @@ self.addEventListener('activate', (e) => {
 
 const isBig = (url) => /\/(models|vendor)\//.test(url.pathname);
 
+// Only a 200 is cached: an error page or a partial response never replaces a good copy.
+const store = (req, res) => (res.status === 200
+  ? caches.open(CACHE).then((c) => c.put(req, res.clone())).then(() => res, () => res)
+  : res);
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
-  const store = (res) => {
-    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
-    return res;
-  };
   if (isBig(url)) {
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then(store)));
+    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => store(req, res))));
     return;
   }
-  e.respondWith(
-    fetch(req).then(store).catch(() =>
-      caches.match(req).then((hit) => hit || (req.mode === 'navigate' ? caches.match('index.html') : Response.error()))),
-  );
+  e.respondWith(caches.match(req).then((hit) => {
+    const fresh = fetch(req).then((res) => store(req, res));
+    if (hit) { e.waitUntil(fresh.catch(() => {})); return hit; }
+    return fresh.catch(() => (req.mode === 'navigate' ? caches.match('index.html') : undefined))
+      .then((res) => res || Response.error());
+  }));
 });
