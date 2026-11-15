@@ -13,6 +13,7 @@ export const HELP = [
   ['🤏 chụm ngón · kéo chuột', 'Kéo vật; trên ô tham số: kéo lên/xuống để chỉnh'],
   ['☝ trỏ giữ trên ô · lăn chuột', 'Chọn / chỉnh tham số'],
   ['Bấm vào ô "?"', 'Hiện / ẩn một đáp án'],
+  ['M · nút Thư viện', 'Mở / đóng thư viện bài học (chọn lớp, học kì)'],
   ['? · F1 · Esc', 'Đóng trợ giúp'],
 ];
 
@@ -25,7 +26,8 @@ export function drawHelp(ctx, L, th) {
   ctx.strokeStyle = th.accent; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
   ctx.font = `${f}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillStyle = th.accent; ctx.fillText('Phím và cử chỉ', x + pad, y + pad, w - 2 * pad);
-  const col = w * 0.38;
+  // key column as wide as its longest entry (fixed 38 % overlapped the descriptions at 1024×768)
+  const col = pad + Math.min(w * 0.45, Math.max(...HELP.map(([k]) => ctx.measureText(k).width)) + f);
   HELP.forEach(([k, what], i) => {
     const ry = y + pad + lh * (i + 1);
     ctx.fillStyle = th.fg; ctx.fillText(k, x + pad, ry, col - pad);

@@ -125,13 +125,17 @@ export function drawChips(ctx, box, params, reveal, results, theme, fontPx) {
   ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
   return items.map((it, i) => {
     const rect = rects[i], { w, h } = rect;
-    roundRect(ctx, rect, h * 0.25);
-    ctx.fillStyle = it.kind === 'result' && !it.shown ? theme.grid : theme.bg;
+    // param: neutral pill (accent ring when selected) · hidden result: dashed outline, a question · shown result: accent-tinted answer
+    const hidden = it.kind === 'result' && !it.shown;
+    roundRect(ctx, rect, h / 2);
+    ctx.fillStyle = it.kind === 'param' ? theme.chip : hidden ? theme.bg : theme.soft;
     ctx.fill();
-    ctx.lineWidth = it.on ? 5 : 2;
-    ctx.strokeStyle = it.on ? theme.accent : it.kind === 'param' ? theme.fg : theme.muted;
+    ctx.lineWidth = it.on ? 4 : 2;
+    ctx.setLineDash(hidden ? [h * 0.18, h * 0.12] : []);
+    ctx.strokeStyle = it.on || (it.kind === 'result' && it.shown) ? theme.accent : hidden ? theme.muted : theme.grid;
     ctx.stroke();
-    ctx.fillStyle = it.kind === 'result' && it.shown ? theme.accent : theme.fg;
+    ctx.setLineDash([]);
+    ctx.fillStyle = it.kind === 'result' && it.shown ? theme.accent : hidden ? theme.muted : theme.fg;
     ctx.fillText(it.text, rect.x + padX, rect.y + h / 2, w - 2 * padX);
     return { key: it.key, kind: it.kind, rect };
   });

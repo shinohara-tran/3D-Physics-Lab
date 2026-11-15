@@ -26,6 +26,7 @@ Bấm `?` (hoặc `F1`) để mở bảng trợ giúp ngay trong ứng dụng; b
 | Lăn chuột trên ô tham số | Tăng / giảm một nấc |
 | ☝ trỏ giữ trên ô tham số | Chọn tham số (chụm ở đâu cũng chỉnh được) |
 | Bấm vào ô "?" | Hiện / ẩn một đáp án |
+| `M` · nút **Thư viện** | Mở / đóng thư viện bài học (chọn lớp, học kì, chương) |
 | `?` · `F1` · `Esc` | Mở / đóng trợ giúp |
 
 ## Đưa lên GitHub Pages

@@ -8,6 +8,8 @@ import { drawHelp } from './ui/help.js';
 import { THEMES, FONT } from './draw/theme.js';
 import { drawChips, chipRows, drawFormula } from './draw/primitives.js';
 import { SCENES } from './scenes/index.js';
+import { createHome } from './ui/home.js';
+import { locate } from './ui/catalog.js';
 
 const NOTICE = 'Không mở được camera — vẫn dùng được bàn phím và chuột.';
 const LOST = 'Mất camera — vẫn dùng được bàn phím và chuột.';
@@ -59,7 +61,28 @@ function main() {
     params = new ParamSet(scene.params); sim = scene.create(params.values()); sim.L = L;   // right geometry for a grab before the first draw
     reveal = new RevealBoard(results().map((r) => r.key));
     st.layers = 0; grabbed = false; adj = mouseAdj = null;
+    renderBar();
   }
+
+  // Lesson bar: where we are in the curriculum + one tab per simulation of the same chapter.
+  const crumb = document.getElementById('crumb'), tabs = document.getElementById('tabs');
+  function renderBar() {
+    const at = locate(scene.id);
+    const chapterScenes = at ? at.chapter.lessons.flatMap((l) => l.scenes) : [scene.id];
+    crumb.innerHTML = at ? `Lớp ${at.grade} · HK${at.sem} · <b>Chương ${at.chapter.no}: ${at.chapter.title}</b>` : '';
+    tabs.replaceChildren(...chapterScenes.map((id) => {
+      const i = SCENES.findIndex((s) => s.id === id), b = document.createElement('button');
+      b.type = 'button'; b.className = 'tab'; b.role = 'tab'; b.textContent = SCENES[i].title;
+      b.setAttribute('aria-selected', String(i === sceneIdx));
+      b.onclick = () => load(i);
+      return b;
+    }));
+  }
+  const setTheme = (t) => { st.theme = t; document.documentElement.dataset.theme = t; };
+  const home = createHome(document.getElementById('home'), SCENES, (i) => { load(i); home.hide(); canvas.focus?.(); });
+  document.getElementById('btn-home').onclick = () => home.show();
+  document.getElementById('btn-theme').onclick = () => setTheme(st.theme === 'light' ? 'dark' : 'light');
+  document.getElementById('btn-help').onclick = () => { st.help = !st.help; };
   const paramAt = (px, py) => hits.find((h) => h.kind === 'param' && inside(h.rect, px, py))?.key ?? null;
   const resultAt = (px, py) => hits.find((h) => h.kind === 'result' && inside(h.rect, px, py))?.key ?? null;
   // A hand is far less precise than a mouse: gestures get a wider catch zone around the mass and the chips.
@@ -87,7 +110,8 @@ function main() {
       case 'nextScene': load(sceneIdx + 1); break;
       case 'prevScene': load(sceneIdx - 1); break;
       case 'gotoScene': if (a.index < SCENES.length) load(a.index); break;
-      case 'toggleTheme': st.theme = st.theme === 'light' ? 'dark' : 'light'; break;
+      case 'toggleTheme': setTheme(st.theme === 'light' ? 'dark' : 'light'); break;
+      case 'toggleHome': home.show(); break;
       case 'toggleCamera': camShown = !camShown; break;
       case 'toggleHelp': st.help = !st.help; break;
       case 'closeHelp': st.help = false; break;
@@ -111,6 +135,10 @@ function main() {
     if (e.ctrlKey || e.metaKey || e.altKey) return;      // keep browser shortcuts (Ctrl+R …)
     const a = inputs.dispatchKey(e.key);
     if (!a) return;
+    if (home.open) {                                     // library screen: only 'm' / Esc go back to the lesson
+      if (a.type === 'toggleHome' || a.type === 'closeHelp') { e.preventDefault(); home.hide(); }
+      return;
+    }
     e.preventDefault();
     if (a.type === 'toggleGestures') { if (!inputs.gesturesEnabled && grabbed) apply({ type: 'release' }); adj = null; gi = new GestureInterpreter(); }
     apply(a);
@@ -146,7 +174,7 @@ function main() {
   }, { passive: false });
 
   function resize() {
-    L = layoutFor(innerWidth, innerHeight, devicePixelRatio || 1, rows);
+    L = layoutFor(canvas.clientWidth, canvas.clientHeight, devicePixelRatio || 1, rows);
     canvas.width = Math.round(L.W * L.dpr); canvas.height = Math.round(L.H * L.dpr);
   }
   addEventListener('resize', resize);
@@ -162,12 +190,12 @@ function main() {
     const shown = res.find((r) => r.key === reveal.last);
     if (shown) drawFormula(ctx, L.formula, shown, th, f);
 
-    const status = [scene.title, scene.lesson];
+    const status = [];   // scene title/lesson live in the lesson bar
     if (st.paused) status.push('⏸ Tạm dừng');
     if (st.slow) status.push('Chậm ×0,25');
     if (st.layers) status.push(scene.layers.slice(0, st.layers).join(' + '));
     ctx.font = `${f}px ${FONT}`; ctx.fillStyle = th.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(status.join(' · '), L.stage.x, L.stage.y, L.stage.w);
+    if (status.length) ctx.fillText(status.join(' · '), L.stage.x, L.stage.y, L.stage.w);
 
     const c = L.cam;
     if (cam && camShown && video.readyState >= 2) {
@@ -202,7 +230,7 @@ function main() {
     try { if (inputs.gesturesEnabled) hands = cam.poll(); } catch (e) { console.warn('camera', e); failed = true; }
     if (cameraLost({ failed, ended: cam.ended, sinceFrameS: t - camT })) { loseCamera(); return; }
     // a gesture grab caught by the wide zone grabs the mass itself (sim.grab needs an exact hit)
-    if (hands) gi.update(hands[0] && reach(hands[0]), t, hit).map((a) => (a.type === 'grab' ? { ...a, ...sim.massPos() } : a)).forEach(apply);
+    if (hands && !home.open) gi.update(hands[0] && reach(hands[0]), t, hit).map((a) => (a.type === 'grab' ? { ...a, ...sim.massPos() } : a)).forEach(apply);
   }
 
   let last = null, logged = false;
@@ -219,7 +247,7 @@ function main() {
     } catch (e) { logOnce(e); }
   }
 
-  resize(); load(0);
+  resize(); load(0); home.show();
   requestAnimationFrame(frame);
 }
 

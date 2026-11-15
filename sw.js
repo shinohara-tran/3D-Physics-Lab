@@ -1,6 +1,6 @@
 // Offline cache. Stale-while-revalidate for app code (cache answers at once, a background fetch refreshes it, so an
 // update shows on the next load), cache-first for the big immutable models/ and vendor/ files.
-const CACHE = 'dao-dong-v2';
+const CACHE = 'dao-dong-v3';
 const PRECACHE = [
   './',
   'index.html',
@@ -27,6 +27,8 @@ const PRECACHE = [
   'src/scenes/springV.js',
   'src/scenes/velAcc.js',
   'src/ui/help.js',
+  'src/ui/catalog.js',
+  'src/ui/home.js',
   'src/ui/layout.js',
   'src/ui/params.js',
   'src/ui/reveal.js',
